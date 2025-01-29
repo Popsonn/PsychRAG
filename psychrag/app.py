@@ -27,10 +27,9 @@ def extract_cot(text):
     cot_text = re.findall(r'<think>(.*?)</think>', text, flags=re.DOTALL)
     return "\n".join(cot_text).strip()
 
-groq_api_key = os.getenv("GROQ_API_KEY")
-hugging_face_api_key = os.getenv("hugging_face_api_key")
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
-langchain_api_key = os.getenv("langchain_api_key")
+groq_api_key = st.secrets.secrets.GROQ_API_KEY
+hugging_face_api_key = st.secrets.secrets.hugging_face_api_key
+langchain_api_key = st.secrets.secrets.langchain_api_key
 
 st.title("PsychRAG with Deepseek-R1-Distill-Llama-70b")
 
