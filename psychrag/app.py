@@ -33,7 +33,7 @@ langchain_api_key = st.secrets.secrets.langchain_api_key
 
 st.title("PsychRAG with Deepseek-R1-Distill-Llama-70b")
 
-llm = ChatGroq(model="Deepseek-R1-Distill-Llama-70b")
+llm = ChatGroq(model="Deepseek-R1-Distill-Llama-70b", api_key=groq_api_key)
 
 prompt = ChatPromptTemplate.from_template(
 """
