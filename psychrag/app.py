@@ -10,12 +10,12 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from huggingface_hub import snapshot_download
 import tempfile
-
 from dotenv import load_dotenv
 
 load_dotenv()
-
-import re
+groq_api_key = st.secrets.secrets.GROQ_API_KEY
+hugging_face_api_key = st.secrets.secrets.hugging_face_api_key
+langchain_api_key = st.secrets.secrets.langchain_api_key
 
 def remove_think_tags(text):
     # Use regex to remove <think> tags and their contents
@@ -26,10 +26,6 @@ def extract_cot(text):
     # Use regex to extract the content within <think> tags
     cot_text = re.findall(r'<think>(.*?)</think>', text, flags=re.DOTALL)
     return "\n".join(cot_text).strip()
-
-groq_api_key = st.secrets.secrets.GROQ_API_KEY
-hugging_face_api_key = st.secrets.secrets.hugging_face_api_key
-langchain_api_key = st.secrets.secrets.langchain_api_key
 
 st.title("PsychRAG with Deepseek-R1-Distill-Llama-70b")
 
