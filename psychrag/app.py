@@ -11,6 +11,7 @@ from langchain.chains import create_retrieval_chain
 from huggingface_hub import snapshot_download
 import tempfile
 from dotenv import load_dotenv
+import shutil
 
 load_dotenv()
 groq_api_key = st.secrets.secrets.GROQ_API_KEY
@@ -52,23 +53,69 @@ Answer:
 
 embeddings = HuggingFaceEmbeddings(model_name = 'sentence-transformers/all-mpnet-base-v2')
 
-@st.cache_resource  # This will cache the vector store load
-# Function to load the vector store from Hugging Face dataset
+import os
+import tempfile
+from huggingface_hub import snapshot_download
+import shutil
+import streamlit as st
+from langchain_community.vectorstores import FAISS
+
+@st.cache_resource
 def load_vector_store():
     vector_store_path = os.path.join(os.getcwd(), "psychrag-vectorstore")
-    if not os.path.exists(vector_store_path):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Download the dataset from Hugging Face
-            repo_path = snapshot_download(
-                repo_id="Popson/psychrag-vectorstore",
-                repo_type="dataset",
-                local_dir=temp_dir
-            )
-            os.makedirs(vector_store_path, exist_ok=True)
-            # Move the downloaded files to the permanent directory
-            for file_name in os.listdir(repo_path):
-                os.rename(os.path.join(repo_path, file_name), os.path.join(vector_store_path, file_name))
-    return FAISS.load_local(vector_store_path, embeddings, allow_dangerous_deserialization=True)
+    print(f"Target vector store path: {vector_store_path}")
+    
+    try:
+        # If vector store doesn't exist locally, download it
+        if not os.path.exists(vector_store_path):
+            print("Downloading from Hugging Face...")
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Download the entire repository
+                repo_path = snapshot_download(
+                    repo_id="Popson/psychrag-vectorstore",
+                    repo_type="dataset",
+                    local_dir=temp_dir,
+                    token=None  # Add your token here if it's a private repo
+                )
+                
+                # Create the target directory
+                os.makedirs(vector_store_path, exist_ok=True)
+                
+                # List contents of downloaded repo
+                print(f"Downloaded files: {os.listdir(repo_path)}")
+                
+                # Copy files instead of moving them
+                for file_name in os.listdir(repo_path):
+                    src = os.path.join(repo_path, file_name)
+                    dst = os.path.join(vector_store_path, file_name)
+                    if os.path.isfile(src):
+                        shutil.copy2(src, dst)
+                        print(f"Copied {file_name} to {dst}")
+        
+        # Verify the required files exist
+        required_files = ['index.faiss', 'index.pkl']
+        existing_files = os.listdir(vector_store_path)
+        print(f"Files in vector store directory: {existing_files}")
+        
+        missing_files = [f for f in required_files if f not in existing_files]
+        if missing_files:
+            raise FileNotFoundError(f"Missing required files: {missing_files}")
+        
+        # Load the vector store
+        print("Loading FAISS index...")
+        vector_store = FAISS.load_local(
+            vector_store_path,
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
+        print("Successfully loaded FAISS index")
+        return vector_store
+        
+    except Exception as e:
+        print(f"Error details: {str(e)}")
+        print(f"Current working directory: {os.getcwd()}")
+        print(f"Directory contents at target path: {os.listdir(vector_store_path) if os.path.exists(vector_store_path) else 'Directory does not exist'}")
+        raise Exception(f"Failed to load vector store: {str(e)}")
 
 # Initialize the RAG chain
 def init_rag_chain():
