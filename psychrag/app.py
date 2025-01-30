@@ -55,7 +55,7 @@ embeddings = HuggingFaceEmbeddings(model_name = 'sentence-transformers/all-mpnet
 
 import os
 import tempfile
-from huggingface_hub import snapshot_download
+from huggingface_hub import snapshot_download, hf_hub_download
 import shutil
 import streamlit as st
 from langchain_community.vectorstores import FAISS
@@ -68,40 +68,44 @@ def load_vector_store():
     try:
         # If vector store doesn't exist locally, download it
         if not os.path.exists(vector_store_path):
-            print("Downloading from Hugging Face...")
-            with tempfile.TemporaryDirectory() as temp_dir:
-                # Download the entire repository
-                repo_path = snapshot_download(
-                    repo_id="Popson/psychrag-vectorstore",
-                    repo_type="dataset",
-                    local_dir=temp_dir,
-                    token=None  # Add your token here if it's a private repo
-                )
-                
-                # Create the target directory
-                os.makedirs(vector_store_path, exist_ok=True)
-                
-                # List contents of downloaded repo
-                print(f"Downloaded files: {os.listdir(repo_path)}")
-                
-                # Copy files instead of moving them
-                for file_name in os.listdir(repo_path):
-                    src = os.path.join(repo_path, file_name)
-                    dst = os.path.join(vector_store_path, file_name)
-                    if os.path.isfile(src):
-                        shutil.copy2(src, dst)
-                        print(f"Copied {file_name} to {dst}")
+            print("Vector store directory doesn't exist, creating it...")
+            os.makedirs(vector_store_path, exist_ok=True)
+            
+            print("Downloading files from Hugging Face...")
+            
+            # Download each file individually using hf_hub_download
+            for filename in ['index.faiss', 'index.pkl']:
+                try:
+                    file_path = hf_hub_download(
+                        repo_id="Popson/psychrag-vectorstore",
+                        filename=filename,
+                        repo_type="dataset",
+                        token=None  # Add your token here if it's a private repo
+                    )
+                    print(f"Downloaded {filename} to: {file_path}")
+                    
+                    # Copy the file to our vector store directory
+                    dst = os.path.join(vector_store_path, filename)
+                    shutil.copy2(file_path, dst)
+                    print(f"Copied {filename} to: {dst}")
+                    
+                    # Verify file size
+                    size = os.path.getsize(dst)
+                    print(f"File size of {filename}: {size / (1024*1024*1024):.2f} GB")
+                    
+                except Exception as download_error:
+                    print(f"Error downloading {filename}: {str(download_error)}")
+                    raise
         
-        # Verify the required files exist
+        # Verify the files exist and have content
         required_files = ['index.faiss', 'index.pkl']
-        existing_files = os.listdir(vector_store_path)
-        print(f"Files in vector store directory: {existing_files}")
+        for filename in required_files:
+            file_path = os.path.join(vector_store_path, filename)
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"Required file missing: {filename}")
+            size = os.path.getsize(file_path)
+            print(f"Verified {filename} exists with size: {size / (1024*1024*1024):.2f} GB")
         
-        missing_files = [f for f in required_files if f not in existing_files]
-        if missing_files:
-            raise FileNotFoundError(f"Missing required files: {missing_files}")
-        
-        # Load the vector store
         print("Loading FAISS index...")
         vector_store = FAISS.load_local(
             vector_store_path,
@@ -114,7 +118,8 @@ def load_vector_store():
     except Exception as e:
         print(f"Error details: {str(e)}")
         print(f"Current working directory: {os.getcwd()}")
-        print(f"Directory contents at target path: {os.listdir(vector_store_path) if os.path.exists(vector_store_path) else 'Directory does not exist'}")
+        if os.path.exists(vector_store_path):
+            print(f"Directory contents at target path: {os.listdir(vector_store_path)}")
         raise Exception(f"Failed to load vector store: {str(e)}")
 
 # Initialize the RAG chain
