@@ -55,7 +55,7 @@ embeddings = HuggingFaceEmbeddings(model_name = 'sentence-transformers/all-mpnet
 @st.cache_resource  # This will cache the vector store load
 # Function to load the vector store from Hugging Face dataset
 def load_vector_store():
-    vector_store_path = os.path.join(os.getcwd(), "pubmed_suicide_vectorstore")
+    vector_store_path = os.path.join(os.getcwd(), "psychrag-vectorstore")
     if not os.path.exists(vector_store_path):
         with tempfile.TemporaryDirectory() as temp_dir:
             # Download the dataset from Hugging Face
