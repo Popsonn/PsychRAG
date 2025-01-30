@@ -53,17 +53,22 @@ Answer:
 embeddings = HuggingFaceEmbeddings(model_name = 'sentence-transformers/all-mpnet-base-v2')
 
 @st.cache_resource  # This will cache the vector store load
+# Function to load the vector store from Hugging Face dataset
 def load_vector_store():
-    with tempfile.TemporaryDirectory() as temp_dir:
-        repo_path = snapshot_download(
-             repo_id="Popson/psychrag-vectorstore",
-            repo_type="dataset",
-            local_dir=temp_dir
-        )
-
-    #vector_store_path = os.path.join(os.getcwd(), "pubmed_suicide_vectorstore")
-    #os.makedirs(vector_store_path, exist_ok=True)
-        return FAISS.load_local(repo_path, embeddings, allow_dangerous_deserialization=True)
+    vector_store_path = os.path.join(os.getcwd(), "pubmed_suicide_vectorstore")
+    if not os.path.exists(vector_store_path):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Download the dataset from Hugging Face
+            repo_path = snapshot_download(
+                repo_id="Popson/psychrag-vectorstore",
+                repo_type="dataset",
+                local_dir=temp_dir
+            )
+            os.makedirs(vector_store_path, exist_ok=True)
+            # Move the downloaded files to the permanent directory
+            for file_name in os.listdir(repo_path):
+                os.rename(os.path.join(repo_path, file_name), os.path.join(vector_store_path, file_name))
+    return FAISS.load_local(vector_store_path, embeddings, allow_dangerous_deserialization=True)
 
 # Initialize the RAG chain
 def init_rag_chain():
